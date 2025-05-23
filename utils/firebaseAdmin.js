@@ -30,31 +30,42 @@ try {
       if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
         try {
           privateKey = JSON.parse(privateKey);
+          console.log('Successfully parsed private key from JSON string');
         } catch (e) {
           console.log('Failed to parse as JSON string, using as is');
         }
       }
       
-      // Replace escaped newlines with actual newlines
-      privateKey = privateKey.replace(/\\n/g, '\n');
-      
-      // Ensure the key has the correct format
-      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}`;
-      }
-      if (!privateKey.includes('-----END PRIVATE KEY-----')) {
-        privateKey = `${privateKey}\n-----END PRIVATE KEY-----\n`;
+      // Replace escaped newlines with actual newlines if they exist
+      if (privateKey.includes('\\n')) {
+        privateKey = privateKey.replace(/\\n/g, '\n');
+        console.log('Replaced escaped newlines with actual newlines');
       }
       
-      // Ensure there's a newline after the header and before the footer
+      // Clean up any existing headers/footers to prevent duplication
       privateKey = privateKey
-        .replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
-        .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----\n');
+        .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+        .replace(/-----END PRIVATE KEY-----/g, '')
+        .replace(/\n/g, '')
+        .trim();
+      
+      // Add proper PEM format
+      privateKey = [
+        '-----BEGIN PRIVATE KEY-----',
+        ...privateKey.match(/.{1,64}/g) || [],
+        '-----END PRIVATE KEY-----'
+      ].join('\n');
+      
+      // Ensure final newline
+      if (!privateKey.endsWith('\n')) {
+        privateKey += '\n';
+      }
       
       console.log('Key format after processing:');
       console.log('- Starts with correct header:', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
       console.log('- Ends with correct footer:', privateKey.endsWith('-----END PRIVATE KEY-----\n'));
       console.log('- Contains newlines:', privateKey.includes('\n'));
+      console.log('- Key is properly formatted in 64-character lines');
       
     } catch (error) {
       console.error('Error processing private key:', error);
