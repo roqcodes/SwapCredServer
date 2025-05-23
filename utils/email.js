@@ -1,3 +1,6 @@
+// Load polyfills first
+require('./polyfills').setup();
+
 const { Resend } = require('resend');
 require('dotenv').config();
 
