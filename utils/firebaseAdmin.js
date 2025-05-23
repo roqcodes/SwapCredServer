@@ -21,24 +21,44 @@ try {
     
     // Debug logging (without exposing the key)
     console.log('Private key format check:');
-    console.log('- Starts with correct header:', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
-    console.log('- Ends with correct footer:', privateKey.endsWith('-----END PRIVATE KEY-----'));
+    console.log('- Original key length:', privateKey?.length);
+    console.log('- Contains \\n:', privateKey?.includes('\\n'));
+    console.log('- Contains actual newlines:', privateKey?.includes('\n'));
     
-    // Remove any quotes from the start and end if present
-    privateKey = privateKey.replace(/^["']|["']$/g, '');
-    
-    // Ensure proper line breaks
-    if (!privateKey.includes('\n')) {
-      // If no actual line breaks, try to fix the format
+    try {
+      // If the key is JSON stringified, parse it
+      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        try {
+          privateKey = JSON.parse(privateKey);
+        } catch (e) {
+          console.log('Failed to parse as JSON string, using as is');
+        }
+      }
+      
+      // Replace escaped newlines with actual newlines
+      privateKey = privateKey.replace(/\\n/g, '\n');
+      
+      // Ensure the key has the correct format
+      if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+        privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKey}`;
+      }
+      if (!privateKey.includes('-----END PRIVATE KEY-----')) {
+        privateKey = `${privateKey}\n-----END PRIVATE KEY-----\n`;
+      }
+      
+      // Ensure there's a newline after the header and before the footer
       privateKey = privateKey
-        .replace(/\\n/g, '\n') // Replace \n string with actual line breaks
-        .replace(/-----BEGIN PRIVATE KEY-----/, '-----BEGIN PRIVATE KEY-----\n') // Ensure break after header
-        .replace(/-----END PRIVATE KEY-----/, '\n-----END PRIVATE KEY-----\n'); // Ensure breaks around footer
-    }
-    
-    // Verify the key format
-    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----') || !privateKey.includes('-----END PRIVATE KEY-----')) {
-      throw new Error('Invalid private key format: Missing header or footer');
+        .replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+        .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----\n');
+      
+      console.log('Key format after processing:');
+      console.log('- Starts with correct header:', privateKey.startsWith('-----BEGIN PRIVATE KEY-----'));
+      console.log('- Ends with correct footer:', privateKey.endsWith('-----END PRIVATE KEY-----\n'));
+      console.log('- Contains newlines:', privateKey.includes('\n'));
+      
+    } catch (error) {
+      console.error('Error processing private key:', error);
+      throw new Error('Failed to process private key format');
     }
     
     serviceAccount = {
@@ -52,9 +72,7 @@ try {
     console.log('Service account configuration:');
     console.log('- Project ID:', serviceAccount.project_id);
     console.log('- Client Email:', serviceAccount.client_email);
-    console.log('- Private Key Format Valid:', 
-      serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----') && 
-      serviceAccount.private_key.includes('-----END PRIVATE KEY-----'));
+    console.log('- Private Key Length:', serviceAccount.private_key.length);
   }
 } catch (error) {
   console.error('Error loading service account:', error);
