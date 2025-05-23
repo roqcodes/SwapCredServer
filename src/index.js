@@ -142,13 +142,14 @@ app.get('/api/health', (req, res) => {
 
 // Serve static files from the React app in production
 if (process.env.NODE_ENV === 'production') {
+  // Serve static files
   app.use(express.static(path.join(__dirname, '../client/dist')));
   
-  // Handle client-side routing
-  app.get('*', (req, res) => {
-    // Only serve index.html for non-API routes
+  // Handle client-side routing - this must be AFTER API routes
+  app.get('/*', (req, res) => {
+    // Only handle non-API routes
     if (!req.path.startsWith('/api/')) {
-      res.sendFile(path.resolve(__dirname, '../client', 'dist', 'index.html'));
+      res.sendFile(path.join(__dirname, '../client/dist/index.html'));
     } else {
       res.status(404).json({ error: 'API endpoint not found' });
     }
