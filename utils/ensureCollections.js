@@ -12,27 +12,23 @@ async function ensureCollectionExists(collectionName) {
   try {
     console.log(`Ensuring collection exists: ${collectionName}`);
     
-    // Check if collection has any documents
-    const snapshot = await db.collection(collectionName).limit(1).get();
+    // Try to get collection reference first
+    const collectionRef = db.collection(collectionName);
     
-    if (snapshot.empty) {
-      console.log(`Collection ${collectionName} is empty, creating placeholder document`);
-      
-      // Create a temporary document with a placeholder flag
-      const tempDoc = {
-        _placeholder: true,
-        _created: new Date(),
-        _description: `Placeholder document to ensure ${collectionName} collection exists`
-      };
-      
-      // Add document with auto-generated ID
-      await db.collection(collectionName).add(tempDoc);
-      console.log(`Created placeholder document in ${collectionName}`);
-    } else {
-      console.log(`Collection ${collectionName} already exists with data`);
-    }
+    // Basic write test to ensure permissions
+    const testDoc = collectionRef.doc('_test');
+    await testDoc.set({ 
+      _test: true,
+      _timestamp: new Date().toISOString()
+    });
+    await testDoc.delete();
+    
+    console.log(`Collection ${collectionName} is accessible`);
+    return true;
   } catch (error) {
     console.error(`Error ensuring collection ${collectionName} exists:`, error);
+    // Don't throw error to allow other collections to initialize
+    return false;
   }
 }
 
@@ -40,18 +36,36 @@ async function ensureCollectionExists(collectionName) {
  * Initialize all required collections for the application
  */
 async function initializeCollections() {
-  const requiredCollections = [
-    'exchange_requests',
-    'users',
-    'credit_history',
-    'warehouses'
-  ];
-  
-  for (const collection of requiredCollections) {
-    await ensureCollectionExists(collection);
+  try {
+    const requiredCollections = [
+      'exchange_requests',
+      'users',
+      'credit_history',
+      'warehouses'
+    ];
+    
+    const results = await Promise.all(
+      requiredCollections.map(collection => 
+        ensureCollectionExists(collection)
+        .catch(err => {
+          console.error(`Failed to initialize collection ${collection}:`, err);
+          return false;
+        })
+      )
+    );
+    
+    const allSuccessful = results.every(result => result === true);
+    if (allSuccessful) {
+      console.log('All required collections initialized successfully');
+    } else {
+      console.warn('Some collections failed to initialize');
+    }
+    
+    return allSuccessful;
+  } catch (error) {
+    console.error('Fatal error during collection initialization:', error);
+    return false;
   }
-  
-  console.log('All required collections initialized');
 }
 
 module.exports = {
